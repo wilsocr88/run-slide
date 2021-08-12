@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>RunSlide</title>
+        <script src="https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js"></script>
+    </head>
+    <body>
+        <h5>UP to jump over bushes</h5>
+        <h5>DOWN to slide under walls</h5>
+        <script>
+            var game = new Phaser.Game({
+                type: Phaser.AUTO,
+                width: 800,
+                height: 600,
+                physics: {
+                    default: 'arcade',
+                    arcade: {
+                        gravity: { y: 1000 }
+                    }
+                },
+                scene: {
+                    preload: function() {
+                        this.load.spritesheet('dude', 'dude.png', { frameWidth: 32, frameHeight: 32 });
+                        this.load.image('floor', 'floor.png');
+                        this.load.image('obstacle', 'obstacle.png');
+                        this.load.image('tree', 'tree.png');
+                    },
+
+                    create: function() {
+                        this.score = 0;
+                        this.scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#fff' });
+                        this.slideCounter = 0;
+                        this.slideCounterMax = 40;
+                        this.obstacleCounter = 0;
+                        this.obstacleCounterMax = 150;
+                        this.obstacleCounterMin = 50;
+                        this.player = this.physics.add.sprite( 16, 550, 'dude' );
+                        this.player.setCollideWorldBounds(true);
+
+                        this.floor = this.physics.add.staticGroup();
+                        this.floor.create( 400, 584, 'floor' );
+
+                        this.obstacle = this.physics.add.group({
+                            immovable: true,
+                            allowGravity: false
+                        });
+
+                        this.anims.create({
+                            key: 'run',
+                            frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 2 }),
+                            frameRate: 10,
+                            yoyo: true,
+                            repeat: -1,
+                        });
+
+                        this.anims.create({
+                            key: 'jump',
+                            frames: [{ key: 'dude', frame: 0 }],
+                        });
+
+                        this.anims.create({
+                            key: 'duck',
+                            frames: [{ key: 'dude', frame: 3 }],
+                        });
+
+                        this.physics.add.collider( this.player, this.floor );
+                    },
+                    
+                    update: function() {
+
+                        this.obstacleCounter++;
+                        this.score++;
+                        this.scoreText.setText('Score: ' + this.score);
+
+                        this.cursors = this.input.keyboard.createCursorKeys();
+
+                        if ( this.cursors.up.isUp ) this.jumpReleased = true;
+                        if ( this.cursors.down.isUp ) this.slideCounter = 0;
+
+                        if ( this.cursors.down.isDown ) {
+                            this.slideCounter++;
+                            if ( this.slideCounter > this.slideCounterMax ) {
+                                this.player.anims.play( 'run', true );
+                            } else {
+                                this.player.anims.play( 'duck' );
+                            }
+                        } else if ( this.cursors.up.isDown && this.player.body.touching.down && this.jumpReleased ) {
+                            this.jumpReleased = false;
+                            // jump power
+                            this.player.setVelocityY( -400 );
+                        } else {
+                            this.player.anims.play( 'run', true );
+                        }
+
+                        if ( !this.player.body.touching.down ) this.player.anims.play( 'jump' );
+                        this.player.setVelocityX( 0 );
+
+                        if ( this.obstacleCounter > this.obstacleCounterMax ) {
+                            if ( Phaser.Math.Between( 0, 1 ) ) {
+                                this.obstacle.create( 800, 552, 'tree' );
+                            } else {
+                                this.obstacle.create( 800, 140, 'obstacle' );
+                            }
+                            this.obstacle.setVelocityX( -500 );
+                            this.obstacleCounter = 0;
+                            this.obstacleCounterMax--;
+                            if ( this.obstacleCounterMax < this.obstacleCounterMin ) {
+                                this.obstacleCounterMax = this.obstacleCounterMin;
+                            }
+                        }
+                        
+                        this.physics.world.collide(this.player, this.obstacle, ( player, obstacle ) => {
+                            if ( obstacle.texture.key === "obstacle" && this.cursors.down.isDown && this.slideCounter <= this.slideCounterMax ) {
+                                return;
+                            } else {
+                                player.destroy();
+                                this.add.text(120, 300, 'Click these words to restart', { fontSize: '32px', fill: '#fff' }).setInteractive()
+                                .on('pointerdown', () => window.location.reload(false) );
+                            }
+                        });
+                    }
+                }
+            });
+        </script>
+
+    </body>
+</html>
